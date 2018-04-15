@@ -54,7 +54,7 @@ while True:
 
 	except socket.error:
 		try:
-			opt = input_with_timeout(0.9)
+			opt = input_with_timeout(0.3)
 			if opt == '0':
 				print(MENU_MSG)
 
@@ -87,6 +87,9 @@ while True:
 				client.sendall(bytes(request, 'UTF-8'))
 
 			elif opt=='4':
+				response = b'4'
+				client.sendall(response)
+				print("Notified RelayServer\nGoodbye!")
 				break
 
 			else:

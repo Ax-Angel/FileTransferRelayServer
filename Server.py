@@ -1,4 +1,3 @@
-import os
 import socket
 import threading
 import time
@@ -48,7 +47,7 @@ class ClientThread(threading.Thread):
 		print(self.clientID + " is connected")
 
 		for client in clients:
-			client[0].send(bytes("105--[Notice] welcome " + self.clientID + "!\n", 'UTF-8'))
+			client[0].sendall(bytes("105--[Notice] welcome " + self.clientID + "!\n", 'UTF-8'))
 		request = ''
 
 		while True:
@@ -61,7 +60,7 @@ class ClientThread(threading.Thread):
 					entry = "/".join([ self.clientID, request[1] ])
 					fileList.append(entry)
 					for client in clients:
-						client[0].send(bytes("105--[Notice] The global file list is updated", 'UTF-8'))
+						client[0].sendall(bytes("105--[Notice] The global file list is updated", 'UTF-8'))
 					print("The global file list is as follows:")
 					for entry in fileList:
 						print(entry)
@@ -70,7 +69,7 @@ class ClientThread(threading.Thread):
 					fileListMessage = "105--The global file list is as follows:\n"
 					for entry in fileList:
 						fileListMessage = fileListMessage + entry + "\n"
-					self.clientSocket.send(bytes(fileListMessage, 'UTF-8'))
+					self.clientSocket.sendall(bytes(fileListMessage, 'UTF-8'))
 
 				elif request[0] == '3':
 					print("Received the file download request from " + self.clientID + " for " + request[1] + "/" + request[2])
@@ -87,7 +86,6 @@ class ClientThread(threading.Thread):
 				elif request[0] == '103':
 					print("Retrieved " + request[2] + " from " + request[1])
 					response = b'--'.join([ b"102", bytes(request[2], 'UTF-8'), bytes(request[3], 'UTF-8'), bytes(request[4], 'UTF-8') ])
-					print(request)
 					for client in clients:
 						if client[1] == request[1]:
 							client[0].sendall(response)
@@ -100,16 +98,35 @@ class ClientThread(threading.Thread):
 						print(entry)
 					time.sleep(0.5)
 					for client in clients:
-						client[0].send(bytes("105--[Notice] The global file list is updated", 'UTF-8'))
+						client[0].sendall(bytes("105--[Notice] The global file list is updated", 'UTF-8'))
 				
 				else:
 					pass
 			except:
 				pass
-		print ("Client " + self.clientID + " at ", self.clientAddress , " disconnected...")
-		clients.remove(self.clientSocket)
+
+		file_list_changed = False
+		clients.remove([self.clientSocket, self.clientID])
+		print (self.clientID + " hast left")
 		for client in clients:
-			client[0].send(bytes("105--[Notice] " + self.clientID + " has left", 'UTF-8'))
+			client[0].sendall(bytes("105--[Notice] " + self.clientID + " has left", 'UTF-8'))
+		
+		i = 0
+		while i < len(fileList):
+			fileArgs = fileList[i].split('/')
+			if fileArgs[0] == self.clientID:
+				fileList.pop(i)
+				file_list_changed = True
+			else:
+				i = i + 1
+
+		if file_list_changed:
+			print("The global file list is as follows:")
+			for entry in fileList:
+				print(entry)
+			time.sleep(0.5)
+			for client in clients:
+				client[0].sendall(bytes("105--[Notice] The global file list is updated", 'UTF-8'))
 
 LOCALHOST = get_ip()
 PORT = 10800
