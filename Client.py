@@ -1,5 +1,7 @@
 import socket
 import os
+import select
+import sys
 
 MENU_MSG = "########################\n" \
 				+ "1. Register a file\n" \
@@ -8,11 +10,20 @@ MENU_MSG = "########################\n" \
 				+ "4. Exit\n" \
 				+ "########################\n"
 
+def input_with_timeout(timeout):
+    sys.stdout.flush()
+    ready, _, _ = select.select([sys.stdin], [],[], timeout)
+    if ready:
+        return sys.stdin.readline().rstrip('\n') # expect stdin to be line-buffered
+    raise TimeoutExpired
+
 print("Welcome")
 print("Enter UserID: ")
 userID = input()
+sys.stdout.flush()
 print("Enter RelayServer IP address: ")
 SERVER = input()
+sys.stdout.flush()
 
 PORT = 10800
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -35,43 +46,53 @@ while True:
 			file.write(bytes(in_data[3], 'UTF-8'))
 			file.close()
 			print(in_data[2] + " has been downloaded")
+			sys.stdout.flush()
 
 		elif in_data[0] == '105':
 			print(in_data[1])
+			sys.stdout.flush()
 
 	except socket.error:
-		pass
-	opt = input()
-	if opt == '0':
-		print(MENU_MSG)
+		try:
+			opt = input_with_timeout(0.9)
+			if opt == '0':
+				print(MENU_MSG)
 
-	elif opt == '1':
-		print("Which file to register? ")
-		path = input()
-		if os.path.isfile(path):
-			try:
-				msg = b'--'.join([ b"1", bytes(path, 'UTF-8')])
+			elif opt == '1':
+				print("Which file to register? ")
+				path = input()
+				sys.stdout.flush()
+				if os.path.isfile(path):
+					try:
+						msg = b'--'.join([ b"1", bytes(path, 'UTF-8')])
+						client.sendall(msg)
+					except:
+						print("Error sending request, try again...")
+						sys.stdout.flush()
+
+				else:
+					print("The file " + path + " doesn't exists!")
+					sys.stdout.flush()
+
+			elif opt == '2':
+				msg = b'--'.join([ b"2" ])
 				client.sendall(msg)
-			except:
-				print("Error sending request, try again...")
+			
+			elif opt == '3':
+				print("Which file to download?")
+				desiredFile = input()
+				sys.stdout.flush()
+				desiredFile = desiredFile.split("/")
+				request = "3--"+desiredFile[0]+"--"+desiredFile[1]
+				client.sendall(bytes(request, 'UTF-8'))
 
-		else:
-			print("The file " + path + " doesn't exists!")
+			elif opt=='4':
+				break
 
-	elif opt == '2':
-		msg = b'--'.join([ b"2" ])
-		client.sendall(msg)
+			else:
+				pass
+
+		except:
+			pass
 	
-	elif opt == '3':
-		print("Which file to download?")
-		desiredFile = input()
-		desiredFile = desiredFile.split("/")
-		request = "3--"+desiredFile[0]+"--"+desiredFile[1]
-		client.sendall(bytes(request, 'UTF-8'))
-
-	elif opt=='4':
-		break
-
-	else:
-		pass
 client.close()

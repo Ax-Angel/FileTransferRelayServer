@@ -1,6 +1,7 @@
 import os
 import socket
 import threading
+import time
 
 clients = []
 fileList = []
@@ -97,6 +98,7 @@ class ClientThread(threading.Thread):
 					print("The global file list is as follows:")
 					for entry in fileList:
 						print(entry)
+					time.sleep(0.5)
 					for client in clients:
 						client[0].send(bytes("105--[Notice] The global file list is updated", 'UTF-8'))
 				
